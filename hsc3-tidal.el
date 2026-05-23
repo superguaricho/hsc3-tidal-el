@@ -138,15 +138,12 @@ Synchronized via GHCi script prompt \\4."
                         (message "✨ hsc3-tidal ready and synchronized!")))))
       (message "⚠️ Haskell process has not been found."))))
 
-(defvar tidal-superdirt-startup-functions nil
-  "List of functions to run when SuperDirt starts up.")
-
 ;;;###autoload
 (defun hsc3-tidal-run ()
-  "Run interactive hsc3-tidal process."
+  "Run interactive hsc3 process."
   (interactive)
-  (message "🚀 Triggering hsc3-tidal Haskell startup...")
-  (remove-hook 'sclang-library-startup-hook 'hsc3-tidal-run)
+  (message "🚀 Triggering hsc3 Haskell startup...")
+  (remove-hook 'hsc3-tidal-superdirt-startup-functions 'hsc3-tidal-run)
   (let ((haskell-buffer (haskell-live-get-haskell-buffer)))
     (if (not (get-buffer hsc3-tidal-repl-buffer))
       (let* ((session (haskell-live-get-session-by-name hsc3-tidal-session-name))
@@ -169,18 +166,22 @@ Synchronized via GHCi script prompt \\4."
             'hsc3-tidal-startup)))
       (haskell-live-add-to-session hsc3-tidal-session-name))))
 
+(setq hsc3-tidal-superdirt-startup-functions nil)
+
 ;;;###autoload
 (defun hsc3-tidal-sclang ()
   "Start sclang and wait for SuperDirt to be ready before starting hsc3-tidal."
   (interactive)
-  (add-to-list 'hsc3-tidal-superdirt-startup-functions #'hsc3-tidal-run)
+  (add-hook 'hsc3-tidal-superdirt-startup-functions #'hsc3-tidal-run)
   (let ((proc (get-process sclang-process)))
     (if (and proc (process-live-p proc))
-      (hsc3-tidal-start-superdirt)
+      (message "SuperDirt already running; waiting for ready signal...")
       (sclang-start))))
 (keymap-set haskell-mode-map "C-c >" #'hsc3-tidal-sclang)
 
 (defalias 'turpial 'hsc3-tidal-sclang)
+
+(remove-hook 'hsc3-tidal-superdirt-startup-functions 'hsc3-tidal-run)
 
 ;;;###autoload
 (defalias 'hsc3-tidal 'hsc3-tidal-sclang)
