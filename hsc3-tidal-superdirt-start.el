@@ -22,15 +22,7 @@
 ;;; Code:
 
 (require 'sclang)
-(require 'tidal-osc)
 (require 'hsc3-tidal-superdirt-install)
-
-(declare-function haskell-interactive-switch "haskell")
-
-(add-to-list 'load-path
-  (file-name-directory (or load-file-name buffer-file-name)))
-
-(setq sclang-show-workspace-on-startup nil)
 
 ;;;###autoload
 (defvar hsc3-tidal-superdirt-startup-functions nil
@@ -44,6 +36,8 @@
 (defvar hsc3-tidal-superdirt-boot-hook nil)
 (defvar hsc3-tidal-osc-server nil
   "OSC server process in Emacs for SuperDirt communication.")
+(defvar hsc3-tidal-superdirt-start-osc-port 7778
+  "Port number for Emacs to listen for SuperDirt ready signals.")
 
 (defun hsc3-tidal-on-superdirt-ready-osc ()
   "Action when Emacs receives OSC from SuperDirt."
@@ -55,7 +49,7 @@
     (mapc #'funcall hsc3-tidal-superdirt-startup-functions)))
 
 (defun hsc3-tidal-remove-emacs-osc-listener ()
-  "Stop the OSC listener in Emacs on port 7777."
+  "Stop the OSC listener in Emacs on `sc3-tidal-superdirt-start-osc-port'."
   (interactive)
   (and (get-process "OSCserver")
     (ignore-errors (delete-process "OSCserver")))
@@ -64,12 +58,12 @@
     (delete-process hsc3-tidal-osc-server)))
 
 (defun hsc3-tidal-start-emacs-osc-listener ()
-  "Restart the OSC listener in Emacs on port 7777."
+  "Restart the OSC listener in Emacs on `sc3-tidal-superdirt-start-osc-port'."
   (interactive)
   (hsc3-tidal-remove-emacs-osc-listener)
-  (message "👂 Emacs: Starting OSC listener on port 7777...")
+  (message "👂 Emacs: Starting OSC listener on port 7778...")
   (setq hsc3-tidal-osc-server
-    (osc-make-server "127.0.0.1" 7777
+    (osc-make-server "127.0.0.1" hsc3-tidal-superdirt-start-osc-port
       (lambda (path &rest args)
         (cond
           ((string= path "/dirt/ready")
@@ -91,8 +85,9 @@
 (defun hsc3-tidal-start-superdirt ()
   "Start SuperDirt with extended memory options."
   (interactive)
+  (remove-hook 'sclang-library-startup-hook 'hsc3-tidal-start-superdirt)
   (hsc3-tidal-start-emacs-osc-listener)
-  (message "📡 Sending configuration from SuperDirt to SCLang (port 7777)...")
+  (message "📡 Sending configuration from SuperDirt to SCLang (port 7778)...")
   (sclang-eval-string
     (format
       "(
@@ -164,15 +159,15 @@ s.waitForBoot {
 
     \"hsc3: OSC Listeners INSTALLED/UPDATED on port 57120\".postln;
 
-    // 3. Notify Emacs that SuperDirt and hsc3 are ready (Port 7777) ---
+    // 3. Notify Emacs that SuperDirt and hsc3 are ready (Port 7778) ---
     s.sync;
-    NetAddr(\"127.0.0.1\", 7777).sendMsg(\"/dirt/ready\", \"SuperDirt is ready\");
-    \"hsc3: SuperDirt is ready. Notifying Emacs on port 7777...\".postln;
+    NetAddr(\"127.0.0.1\", %s).sendMsg(\"/dirt/ready\", \"SuperDirt is ready\");
+    \"hsc3: SuperDirt is ready. Notifying Emacs on port %s...\".postln;
 };
 )"
-      hsc3-tidal-superdirt-start-synthsdir)))
-
-(add-hook 'sclang-library-startup-hook #'hsc3-tidal-start-superdirt 95)
+      hsc3-tidal-superdirt-start-synthsdir
+      hsc3-tidal-superdirt-start-osc-port
+      hsc3-tidal-superdirt-start-osc-port)))
 
 (provide 'hsc3-tidal-superdirt-start)
 ;;; hsc3-tidal-superdirt-start.el ends here

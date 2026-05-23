@@ -5,7 +5,7 @@
 ;; Author: Numa Tortolero
 ;; Maintainer: Numa Tortolero
 ;; Created: vie may  8 11:51:51 2026 (-0400)
-;; Version: 0.1.0.5
+;; Version: 0.1.0.6
 ;; Package-Requires: ((osc "0.4") (haskell-mode "17.5"))
 ;; URL: https://github.com/superguaricho/hsc3-tidal-el
 ;; Keywords: haskell tidal supercollider live-coding
@@ -163,11 +163,14 @@ Synchronized via GHCi script prompt \\4."
 
 (setq hsc3-tidal-superdirt-startup-functions nil)
 
+(declare-function hsc3-tidal-start-superdirt "hsc3-tidal-superdirt-start" () t)
+
 ;;;###autoload
 (defun hsc3-tidal-sclang ()
   "Start sclang and wait for SuperDirt to be ready before starting hsc3-tidal."
   (interactive)
-  (add-hook 'hsc3-tidal-superdirt-startup-functions #'hsc3-tidal-run)
+  (add-to-list 'hsc3-tidal-superdirt-startup-functions #'hsc3-tidal-run)
+  (add-hook 'sclang-library-startup-hook #'hsc3-tidal-start-superdirt 95)
   (let ((proc (get-process sclang-process)))
     (if (and proc (process-live-p proc))
       (message "SuperDirt already running; waiting for ready signal...")

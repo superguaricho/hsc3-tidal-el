@@ -12,14 +12,12 @@
 ;;; Commentary:
 ;;
 ;;    Utilities to install SuperDirt and scel (sclang-mode).
-;;      Installation:x
-;;      Ensure you have sclang (SuperCollider client) installed.
 ;;
 ;;    Usage:
-;;      From Emacs: M-x tidal-install-scel
-;;                  M-x tidal-install-superdirt
+;;      From Emacs: M-x hsc3-tidal-superdirt-install-scel
+;;                  M-x hsc3-tidal-install-dirt
 ;;
-;;      Or from Emacs intend: M-x tidal-install-scel-dirt
+;;      Or from Emacs intend: M-x hsc3-tidal-superdirt-install
 ;;
 ;;      This last will intend install scel and superdirt.
 ;;
@@ -27,7 +25,6 @@
 ;;; Code:
 
 (require 'osc)
-(require 'tidal-osc)
 
 (defgroup hsc3-tidal-superdirt-install nil
   "Installation utilities for SuperDirt and scel."
@@ -338,8 +335,8 @@ OSCdef(\\eval, { |msg|
 
 ;;;###autoload
 (defun hsc3-tidal-superdirt-install-scel ()
-  "Install `sclang-mode' as a SuperCollider quark."
-  (interactive)
+    "Install `sclang-mode' as a SuperCollider quark."
+    (interactive)
   (hsc3-tidal-superdirt-install--update-paths)
   (unless (and hsc3-tidal-superdirt-install-scel-path (file-exists-p hsc3-tidal-superdirt-install-scel-path))
     (message "🔧 Installing scel (sclang-mode)...")
