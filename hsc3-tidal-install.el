@@ -1,7 +1,7 @@
 ;;; hsc3-tidal-install.el --- Installation script for hsc3 and TidalCycles -*- lexical-binding: t -*-
 ;;
 ;; Filename: hsc3-tidal-install.el
-;; Description: Emacs Lisp script to automate the installation of vivid-tidal.
+;; Description: Emacs Lisp script to automate the installation of hsc3-tidal.
 ;; Author: Numa Tortolero
 ;; Created: mié may 13 20:20:23 2026 (-0400)
 ;; URL: https://github.com/superguaricho/hsc3-tidal-el
@@ -40,9 +40,9 @@
 (defvar hsc3-tidal-install-haskell-local-dir
   (expand-file-name "~/.local/share/haskell")
   "Base directory for local Haskell installations.
-vivid-tidal will be installed in a subdirectory here.")
+hsc3-tidal will be installed in a subdirectory here.")
 
-(defvar hsc3-tidal-install-pack-name "vivid-tidal"
+(defvar hsc3-tidal-install-pack-name "hsc3-tidal"
   "Name of the Vivid-Tidal package for installation and script generation.")
 
 (defvar hsc3-tidal-install-repo
@@ -53,7 +53,7 @@ vivid-tidal will be installed in a subdirectory here.")
   (format "*%s installation*" hsc3-tidal-install-pack-name))
 
 (defvar hsc3-tidal-install-version ""
-  "Version of vivid-tidal to install.
+  "Version of hsc3-tidal to install.
 Update this to install a different version.")
 
 (defvar hsc3-tidal-install-dir
@@ -157,7 +157,7 @@ Returns the process object."
         nil t)
       (cd hsc3-tidal-install-haskell-local-dir)
       (let ((proc (start-process
-                    "vivid-tidal-install"
+                    "hsc3-tidal-install"
                     hsc3-tidal-install-buffer
                     "git" "clone" hsc3-tidal-install-repo)))
         (when proc
@@ -183,7 +183,7 @@ Returns the process object."
           (insert "\n--- Starting Cabal Build ---\n"))
         (cd hsc3-tidal-install-dir)
         (let ((proc (start-process-shell-command
-                      "vivid-tidal-build"
+                      "hsc3-tidal-build"
                       hsc3-tidal-install-buffer
                       "cabal build")))
           (set-process-filter proc 'hsc3-tidal-install-process-filter)
@@ -194,29 +194,6 @@ Returns the process object."
           proc)))
     (message "⚠️ Cabal not found or Vivid-Tidal directory missing.")
     nil))
-
-;;;###autoload
-(defun hsc3-tidal-install-build ()
-  "Install and build Vivid-Tidal sequentially using process sentinels."
-  (interactive)
-  (let ((clone-proc (hsc3-tidal-install-repo)))
-    (set-process-sentinel
-      clone-proc
-      (lambda (p event)
-        (cond
-          ((string-match-p "finished" event)
-            (message "✅ Repo cloned. Starting build...")
-            (let ((build-proc (hsc3-tidal-install-build-repo)))
-              (when build-proc
-                (set-process-sentinel
-                  build-proc
-                  (lambda (p2 event2)
-                    (if (string-match-p "finished" event2)
-                      (progn
-                        (message "✅ Vivid-Tidal built successfully!")
-                        (hsc3-tidal-install-scripts))
-                      (message "❌ Build failed: %s" event2)))))))
-          (t (message "❌ Clone failed: %s" event)))))))
 
 ;;;###autoload
 (defun hsc3-tidal-install-bash-script ()
@@ -244,7 +221,7 @@ Returns the process object."
       (insert hsc3-tidal-install-ghci-script-string))
     (with-temp-file hsc3-tidal-install-ghci-script-file
       (insert hsc3-tidal-install-ghci-loadme-string))
-    (message "✅ vivid-tidal GHCi scripts installed at %s"
+    (message "✅ hsc3-tidal GHCi scripts installed at %s"
       hsc3-tidal-install-dir)))
 
 ;;;###autoload
@@ -281,6 +258,64 @@ This chains: clone -> build -> script installation."
   (when (file-directory-p hsc3-tidal-install-dir)
     (delete-directory hsc3-tidal-install-dir t))
   (when (file-exists-p hsc3-tidal-install-bash-script)
+    (delete-file hsc3-tidal-install-bash-script))
+  (let ((ghci-path (expand-file-name "hsc3-tidal-emacs.ghci" hsc3-tidal-install-dir)))
+    (when (file-exists-p ghci-path)
+      (delete-file ghci-path)))
+  (message "🧹 hsc3-tidal installation cleaned."))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defconst hsc3-tidal-install-bash-script-string
+  (format "#!/bin/sh
+PACK=%s
+PACKPATH=%s
+cd $PACKPATH
+cabal repl --repl-options=\"-ghci-script %s-emacs.ghci\" --repl-options=-Wno-missing-home-modules"
+    hsc3-tidal-install-pack-name
+    hsc3-tidal-install-dir
+    hsc3-tidal-install-pack-name)
+  "Content of the hsc3-tidal executable bash script.
+It loads Boot.ghci to work from terminal.")
+
+(defconst hsc3-tidal-install-ghci-script-string
+  (format "
+:def! boot \\_ -> return \":script loadme.ghci\"
+:{
+let l  = replicate 35 '-'
+in do
+  putStrLn \"\"
+  putStrLn l
+  putStrLn $ \"| Type :boot to start %s. |\"
+  putStrLn l
+  putStrLn \"\"
+:}
+    " hsc3-tidal-install-pack-name))
+
+(defconst hsc3-tidal-install-ghci-loadme-string
+  (format "
+:set +m
+
+import           Sound.Sc3
+import           Sound.Tidal.Context
+
+:script BootTidal.hs
+
+import           Sound.Sc3.Tidal
+import           Sound.Sc3.Tidal.Examples
+
+loadExamples
+
+:set prompt \"tidal> \"
+:set prompt \"\4\"
+"
+    hsc3-tidal-install-dir
+    "Template for the hsc3-tidal.ghci file with emacs support."))
+
+(provide 'hsc3-tidal-install)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; hsc3-tidal-install.el ends here
+install-bash-script)
     (delete-file hsc3-tidal-install-bash-script))
   (let ((ghci-path (expand-file-name "hsc3-tidal-emacs.ghci" hsc3-tidal-install-dir)))
     (when (file-exists-p ghci-path)
