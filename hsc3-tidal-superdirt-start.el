@@ -92,7 +92,7 @@
   "Start SuperDirt with extended memory options."
   (interactive)
   (hsc3-tidal-start-emacs-osc-listener)
-  (message "📡 Enviando configuración de SuperDirt a SCLang (port 7777)...")
+  (message "📡 Sending configuration from SuperDirt to SCLang (port 7777)...")
   (sclang-eval-string
     (format
       "(

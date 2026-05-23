@@ -5,7 +5,7 @@
 ;; Author: Numa Tortolero
 ;; Maintainer: Numa Tortolero
 ;; Created: vie may  8 11:51:51 2026 (-0400)
-;; Version: 0.1.0.3
+;; Version: 0.1.0.4
 ;; Package-Requires: ((osc "0.4") (haskell-mode "17.5"))
 ;; URL: https://github.com/superguaricho/hsc3-tidal-el
 ;; Keywords: haskell tidal supercollider live-coding
