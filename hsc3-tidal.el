@@ -5,7 +5,7 @@
 ;; Author: Numa Tortolero
 ;; Maintainer: Numa Tortolero
 ;; Created: vie may  8 11:51:51 2026 (-0400)
-;; Version: 0.1.0.4
+;; Version: 0.1.0.5
 ;; Package-Requires: ((osc "0.4") (haskell-mode "17.5"))
 ;; URL: https://github.com/superguaricho/hsc3-tidal-el
 ;; Keywords: haskell tidal supercollider live-coding
@@ -28,17 +28,12 @@
 
 ;;; Code:
 
-(add-to-list 'load-path (file-name-directory
-                          (or load-file-name buffer-file-name)))
-
 (require 'haskell-live)
 (require 'sclang)
 (require 'hsc3-tidal-layouts nil t)
 (require 'hsc3-tidal-superdirt-install nil t)
 (require 'hsc3-tidal-install nil t)
 (require 'hsc3-tidal-superdirt-start nil t)
-
-;; (package-install-file (file-name-directory (or load-file-name buffer-file-name)))
 
 (defvar hsc3-tidal-session-name "hsc3-tidal"
   "The name of the GHCi session for hsc3-tidal.")
