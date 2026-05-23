@@ -1,6 +1,0 @@
-*.elc
-*~
-#*#
-.#*
-dist-newstyle/
-test.scd
