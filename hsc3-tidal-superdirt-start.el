@@ -5,11 +5,7 @@
 ;; Author: Numa Tortolero
 ;; Maintainer: Numa Tortolero
 ;; Created: vie ene 23 22:36:06 2026 (-0400)
-;; Version: 0.1.0
-;; Package-Requires: (Emacs 27.1 sclang osc sclang-ext)
-;; URL: https://github.com/superguaricho/tidal
-;; Keywords: (Emacs SuperCollider SuperDirt OSC)
-;; Compatibility: Emacs 27.1 and later
+;; URL: https://github.com/superguaricho/hsc3-tidal-el
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -27,7 +23,7 @@
 
 (require 'sclang)
 (require 'tidal-osc)
-(require 'hsc3-superdirt-install)
+(require 'hsc3-tidal-superdirt-install)
 
 (declare-function haskell-interactive-switch "haskell")
 
@@ -66,6 +62,7 @@
   (and hsc3-tidal-osc-server
     (process-status hsc3-tidal-osc-server)
     (delete-process hsc3-tidal-osc-server)))
+
 (defun hsc3-tidal-start-emacs-osc-listener ()
   "Restart the OSC listener in Emacs on port 7777."
   (interactive)
@@ -80,6 +77,16 @@
 
 (add-hook 'hsc3-tidal-superdirt-boot-hook #'hsc3-tidal-on-superdirt-ready-osc)
 
+(declare-function hsc3-tidal-superdirt-install-get-resdir
+  "hsc3-tidal-superdirt-install")
+
+(defvar hsc3-tidal-superdirt-start-resdir
+  (or (hsc3-tidal-superdirt-install-get-resdir)
+    (expand-file-name "~/.local/share/SuperCollider")))
+
+(defvar hsc3-tidal-superdirt-start-synthsdir
+  (expand-file-name "synthdefs" hsc3-tidal-superdirt-start-resdir))
+
 ;;;###autoload
 (defun hsc3-tidal-start-superdirt ()
   "Start SuperDirt with extended memory options."
@@ -87,7 +94,8 @@
   (hsc3-tidal-start-emacs-osc-listener)
   (message "📡 Enviando configuración de SuperDirt a SCLang (port 7777)...")
   (sclang-eval-string
-    "(
+    (format
+      "(
 s.options.numBuffers = 1024 * 256;
 s.options.memSize = 8192 * 32;
 s.options.numWireBufs = 2048;
@@ -96,38 +104,73 @@ s.options.numOutputBusChannels = 2;
 s.options.numInputBusChannels = 2;
 
 s.waitForBoot {
-    ~dirt.stop;
-    ~dirt = SuperDirt(2, s);
-    ~dirt.loadSoundFiles;
-    ~dirt.start(57120, 0 ! 12);
-    SuperDirt.default = ~dirt;
-    s.latency = 0.8;
+    // 1. Ensure SuperDirt is running
+    if (~dirt.isNil, {
+        ~dirt = SuperDirt(2, s);
+        ~dirt.loadSoundFiles;
+        ~dirt.start(57120, 0 ! 12);
+        SuperDirt.default = ~dirt;
+        s.latency = 0.3;
+        \"hsc3: SuperDirt STARTED\".postln;
+    }, {
+        \"hsc3: SuperDirt already running, ensuring listeners...\".postln;
+    });
 
-    // --- Vivid: Reload Listener (Robust) ---
-    fork {
-        thisProcess.openUDPPort(57120);
-        0.1.wait;
-        OSCdef('vividReload', { |msg|
-           \"Vivid: -> RELOAD SIGNAL RECEIVED\".postln;
-           fork {
-              var path = \"/home/numa/.local/share/SuperCollider/synthdefs/\";
-              s.sendMsg(\"/d_loadDir\", path);
-              s.sync;
-              SynthDescLib.global.read(path ++ \"*.scsyndef\");
-              0.2.wait;
-              ~dirt.loadSynthDefs;
-              \"Vivid: -> Sync complete. Definitions updated.\".postln;
-           }
-        }, '/vivid/reload', recvPort: 57120).fix;
-        \"Vivid: OSC Listener INSTALLED on port 57120\".postln;
+    // 2. Always ensure OSC listeners are installed (Idempotent with OSCdef)
+    thisProcess.openUDPPort(57120);
 
-        // --- Notify Emacs that SuperDirt and Vivid are ready (Port 7777) ---
-        s.sync;
-        NetAddr(\"127.0.0.1\", 7777).sendMsg(\"/dirt/ready\", \"SuperDirt is ready\");
-        \"Vivid: SuperDirt is ready. Notifying Emacs on port 7777...\".postln;
+    ~printCheatSheet = {
+        \"\".postln;
+        \"--- hsc3 Sample Cheat Sheet ---\".postln;
+        [\\bd, \\sn, \\cp, \\hh, \\arpy, \\casio, \\drum].do { |name|
+            if (~dirt.notNil and: { ~dirt.buffers[name].notNil }) {
+                (\"Sample '\" ++ name ++ \"' -> Buffer: \" ++ ~dirt.buffers[name][0].bufnum).postln;
+            };
+        };
+        \"-------------------------------\".postln;
     };
+
+    OSCdef(\\hsc3Reload, { |msg|
+        var path = \"%s\".standardizePath;
+        if(path.endsWith(Platform.pathSeparator.asString).not) { path = path ++ Platform.pathSeparator };
+        \"hsc3: Syncing Server and SuperDirt...\".postln;
+        fork {
+            s.sendMsg(\"/d_loadDir\", path);
+            s.sync;
+
+            // Populate SynthDescLib and SuperDirt explicitly
+            pathMatch(path ++ \"*.scsyndef\").do { |file|
+                var descs = SynthDesc.read(file);
+                if (descs.notNil) {
+                    descs.do { |desc|
+                        SynthDescLib.global.add(desc);
+                        if (~dirt.notNil) {
+                            ~dirt.soundLibrary.addSynth(desc.name.asSymbol);
+                        };
+                    };
+                };
+            };
+
+            s.sync;
+            0.2.wait;
+            if (~dirt.notNil) { ~dirt.loadSynthDefs };
+            \"hsc3: Sync complete. All definitions ready.\".postln;
+            0.5.wait;
+            ~printCheatSheet.value;
+        };
+    }, '/hsc3/reload');
+
+    OSCdef(\\hsc3Cheat, { ~printCheatSheet.value; }, '/hsc3/cheat');
+
+    \"hsc3: OSC Listeners INSTALLED/UPDATED on port 57120\".postln;
+
+    // 3. Notify Emacs that SuperDirt and hsc3 are ready (Port 7777) ---
+    s.sync;
+    NetAddr(\"127.0.0.1\", 7777).sendMsg(\"/dirt/ready\", \"SuperDirt is ready\");
+    \"hsc3: SuperDirt is ready. Notifying Emacs on port 7777...\".postln;
 };
-)"))
+)"
+      hsc3-tidal-superdirt-start-synthsdir)))
 
 (add-hook 'sclang-library-startup-hook #'hsc3-tidal-start-superdirt 95)
 

@@ -5,8 +5,7 @@
 ;; Author: Numa Tortolero
 ;; Maintainer: Numa Tortolero
 ;; Created: Sat Feb  7 15:03:58 2026 (-0400)
-;; Version: 0.0.0
-;; Package-Requires: (sclang)
+;; Homepage: https://github.com/superguaricho/hsc3-tidal-el
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -34,7 +33,8 @@
   "Installation utilities for SuperDirt and scel."
   :group 'tidal)
 
-(defcustom tidal-superdirt-install-sclang-path (or (executable-find "sclang") "sclang")
+(defcustom hsc3-tidal-superdirt-install-sclang-path
+  (or (executable-find "sclang") "sclang")
   "Path to sclang SuperCollider client."
   :type 'string
   :group 'hsc3-tidal-superdirt-install)
@@ -175,6 +175,16 @@ Updates the buffer with output from proc and string, and updates the spinner."
     (expand-file-name "scel/el" hsc3-tidal-superdirt-install-quarks-folder))
   (setq hsc3-tidal-superdirt-install-path
     (expand-file-name "SuperDirt/SuperDirt.quark" hsc3-tidal-superdirt-install-quarks-folder)))
+
+(defvar hsc3-tidal-superdirt-install-extensions-path nil)
+
+(defun hsc3-tidal-superdirt-install-set-extensions-paths ()
+  "Set the ` hsc3-tidal-superdirt-install-extensions-path' variable."
+  (setq  hsc3-tidal-superdirt-install-extensions-path
+    (hsc3-tidal-superdirt-install-get-result-sync "Platform.userExtensionDir")))
+
+(defun hsc3-tidal-superdirt-install-get-resdir ()
+  (hsc3-tidal-superdirt-install-get-result-sync "Platform.resourceDir"))
 
 (defvar hsc3-tidal-superdirt-install--bridge-ready nil
   "Internal flag indicating if the SC bridge is ready to receive commands.")
